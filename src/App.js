@@ -5,15 +5,21 @@ import { useEffect, useState } from 'react';
 
 const webR = new WebR();
 await webR.init();
-let xyz = await webR.installPackages(["ggplot2"])
+await webR.installPackages(["tidyverse"])
 
-async function getRandomNumbers(n, m, s) {
+async function getAPlot() {
   const shelter = await new webR.Shelter();
   const capture = await shelter.captureR(
-    `library(ggplot2);
-myDF <- data.frame(values = round(rnorm(${n},${m},${s}), 2));
-myPlot <- ggplot(myDF, mapping = aes(x = values)) +
-  geom_histogram()
+    `library(tidyverse)
+dataCT <- read.csv("http://localhost:3000/Summer-2024/ct_data.csv")
+names(dataCT) <- lapply(dataCT[1,], as.character)
+names(dataCT) <- chartr("!!", "__", names(dataCT))
+names(dataCT) <- chartr(" ", ".", names(dataCT))
+dataCT <- dataCT[-1,]
+dataCT[,3:323] <- sapply(dataCT[,3:323], as.numeric)
+selectDataCT <- dataCT[,c(1,2,183,186,207,210,231,74:77,248:253,255,256,275:290,295:308,310:317,321,322)]
+myPlot <- ggplot(selectDataCT, mapping = aes(x = Count__MEDIAN.AGE.BY.SEX__Both.sexes, y = \`Percent__TOTAL.RACES.TALLIED.[1]__Total.races.tallied__White.alone.or.in.combination.with.one.or.more.other.races\`)) +
+  geom_point()
 print(myPlot)`, {
   captureGraphics: {
     width: 300,
@@ -29,14 +35,25 @@ function App() {
   const [stanDev, setStanDev] = useState(1)
   const [result, setResult] = useState()
   const [loading, setLoading] = useState(false)
+  const [rawData, setRawData] = useState()
 
   function getResults() {
     setLoading(true);
-    getRandomNumbers(nResults, mean, stanDev).then(r => {
+    getAPlot(rawData).then(r => {
       setResult(r);
       setLoading(false)
   });
   }
+
+  useEffect(() => {
+    fetch(`${process.env.PUBLIC_URL}/ct_data.csv`,
+      {
+        headers: {
+          "Content-Type": "text/csv"
+        }
+      }
+    ).then(r => setRawData(r))
+  }, [])
 
   useEffect(() => {
     if (result) {
@@ -62,7 +79,7 @@ function App() {
             <input type="number" id="sd" name="sd" min="1" max="100" value={stanDev} onChange={e => setStanDev(e.target.value)}/>
           <br/>
           <button onClick={getResults} disabled={loading}>
-            Get a plot!
+            Get a (totally unrelated) plot!
           </button>
         </p>
         <canvas id="plot-canvas" width="600" height="300" style={{border: "solid white"}}/>
