@@ -11,7 +11,7 @@ async function getAPlot() {
   const shelter = await new webR.Shelter();
   const capture = await shelter.captureR(
     `library(tidyverse)
-dataCT <- read.csv("http://localhost:3000/Summer-2024/ct_data.csv")
+dataCT <- read.csv("${window.location.href}/ct_data.csv")
 names(dataCT) <- lapply(dataCT[1,], as.character)
 names(dataCT) <- chartr("!!", "__", names(dataCT))
 names(dataCT) <- chartr(" ", ".", names(dataCT))
