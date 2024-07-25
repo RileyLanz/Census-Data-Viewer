@@ -14,10 +14,13 @@ const categoryNames = await webR.evalRRaw(
   false <- F
   true <- T
   dataCT <- read.csv("${window.location.href}/ct_data.csv")
+  zipTable <- read.csv("${window.location.href}/uszips.csv")
+  catNames <- read.csv("${window.location.href}/category_names.csv")
   names(dataCT) <- lapply(dataCT[1,], as.character)
   dataCT <- dataCT[-1,]
   dataCT[,3:323] <- sapply(dataCT[,3:323], as.numeric)
-  selectDataCT <- dataCT[,c(1,2,3,183,186,207,210,231,234,75:77,248:253,255,256,275:290,295:308,310:317,321,322)]
+  selectDataCT <- dataCT[,c(1,2,3,75,183,186,187,211,248:253,255,256,276:278,285,286,295:299,302,303,306:308,310,311,321,322)]
+  names(selectDataCT) <- catNames[,1]
   print(names(selectDataCT))`,
 'string[]'
 )
@@ -32,22 +35,25 @@ async function getAPlot(x,y,labelO,listO) {
     dfToUse <- data.frame(x = selectDataCT$\`${x}\`, y = selectDataCT$\`${y}\`)
     model <- lm(dfToUse$x~dfToUse$y, na.action = "na.exclude")
 
-    fits <- model$fitted.values
-    indices <- 1:(nrow(dfToUse))
-    indices <- indices[!indices %in% names(fits)]
-    fits[as.character(indices)] <- NA
-    fits <- fits[order(as.numeric(names(fits)))]
+    fits <- model$coefficients[1] + (model$coefficients[2] * dfToUse$x)
     rezzies <- dfToUse$y - fits
     
     dfToUse$zipcode <- ifelse((is_outlier(abs(rezzies)) | is.na(rezzies)) & ${labelO || listO}, str_sub(selectDataCT$\`Geographic Area Name\`, start = -5), as.numeric(NA))
-    outlierTable <- dfToUse[!is.na(dfToUse$zipcode),]
     if (!${labelO}) {dfToUse$zipcode <- as.numeric(NA)}
 
     myPlot <- ggplot(dfToUse, mapping = aes(x = x, y = y, label = zipcode)) +
-      geom_smooth(method = "glm", se = FALSE) +
+      geom_abline(intercept = model$coefficients[1], slope = model$coefficients[2], color = "blue") +
       geom_point() +
       geom_label_repel(alpha = 0.7, max.overlaps = 1000)
     print(myPlot)
+    
+    outlierTable <- dfToUse[!is.na(dfToUse$zipcode),]
+    if (nrow(outlierTable) > 0) {
+      outlierTable$city <- NA
+      for (z in outlierTable$zipcode) {
+        outlierTable[outlierTable$zipcode == z,]$city <- zipTable[zipTable$zip == as.integer(z),]$city
+      }
+    }
     
     rowStrings <- c()
     for(r in 1:(nrow(outlierTable))) {
@@ -118,18 +124,22 @@ function App() {
     if (showOutlierTable) {
       return (
         <table>
-          <tr>
-            <th scope="col">Zipcode</th>
-            <th scope="col">{xAxis}</th>
-            <th scope="col">{yAxis}</th>
-          </tr>
-          {outliers.map(row =>
+          <tbody>
             <tr>
-              <th scope="row">{row.zipcode}</th>
-              <td>{row.x}</td>
-              <td>{row.y}</td>
+              <th scope="col">Zipcode</th>
+              <th scope="col">City</th>
+              <th scope="col">{xAxis}</th>
+              <th scope="col">{yAxis}</th>
             </tr>
-          )}
+            {outliers.map(row =>
+              <tr>
+                <th scope="row">{row.zipcode}</th>
+                <td>{row.city}</td>
+                <td>{row.x}</td>
+                <td>{row.y}</td>
+              </tr>
+            )}
+          </tbody>
         </table>
       )
     } else {
@@ -168,12 +178,13 @@ function App() {
             </label>
           <br/>
             <label>
-              Label outliers?
               <input type="checkbox" checked={labelOutliers} onChange={e => setLabelOutliers(e.target.checked)}/>
+              Label outliers
             </label>
+          <br/>
             <label>
-              List outliers?
               <input type="checkbox" checked={listOutliers} onChange={e => setListOutliers(e.target.checked)}/>
+              List outliers
             </label>
           <br/>
           <button onClick={getResults} disabled={loading || !xAxis || !yAxis}>
