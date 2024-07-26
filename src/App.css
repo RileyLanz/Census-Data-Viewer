@@ -36,3 +36,17 @@
     transform: rotate(360deg);
   }
 }
+
+table {
+  border: 3px solid rgb(140 140 140);
+}
+
+th,
+td {
+  border: 2px solid rgb(160 160 160);
+}
+
+td {
+  background-color: white;
+  color: black;
+}

@@ -1,4 +1,3 @@
-import logo from './logo.svg';
 import './App.css';
 import { WebR } from 'webr';
 import { useEffect, useState } from 'react';
@@ -39,15 +38,17 @@ async function getAPlot(x,y,labelO,listO) {
     rezzies <- dfToUse$y - fits
     
     dfToUse$zipcode <- ifelse((is_outlier(abs(rezzies)) | is.na(rezzies)) & ${labelO || listO}, str_sub(selectDataCT$\`Geographic Area Name\`, start = -5), as.numeric(NA))
+    outlierTable <- dfToUse[!is.na(dfToUse$zipcode),]
     if (!${labelO}) {dfToUse$zipcode <- as.numeric(NA)}
 
     myPlot <- ggplot(dfToUse, mapping = aes(x = x, y = y, label = zipcode)) +
       geom_abline(intercept = model$coefficients[1], slope = model$coefficients[2], color = "blue") +
       geom_point() +
-      geom_label_repel(alpha = 0.7, max.overlaps = 1000)
+      geom_label_repel(alpha = 0.7, max.overlaps = 1000) +
+      scale_x_continuous(name = "${x}") +
+      scale_y_continuous(name = "${y}")
     print(myPlot)
     
-    outlierTable <- dfToUse[!is.na(dfToUse$zipcode),]
     if (nrow(outlierTable) > 0) {
       outlierTable$city <- NA
       for (z in outlierTable$zipcode) {
@@ -123,9 +124,9 @@ function App() {
   function OutlierTable() {
     if (showOutlierTable) {
       return (
-        <table>
+        <table style={{borderCollapse: "collapse"}}>
           <tbody>
-            <tr>
+            <tr style={{backgroundColor: "lightblue", color: "black"}}>
               <th scope="col">Zipcode</th>
               <th scope="col">City</th>
               <th scope="col">{xAxis}</th>
@@ -133,7 +134,9 @@ function App() {
             </tr>
             {outliers.map(row =>
               <tr>
-                <th scope="row">{row.zipcode}</th>
+                <th scope="row" style={{color: "black", backgroundColor: "rgb(220,220,220)"}}>
+                  {row.zipcode}
+                </th>
                 <td>{row.city}</td>
                 <td>{row.x}</td>
                 <td>{row.y}</td>
@@ -157,7 +160,6 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
         <p>
           Let's make a graph! 
           <br/>
@@ -192,6 +194,7 @@ function App() {
           </button>
         </p>
         <canvas id="plot-canvas" width="900" height="450" style={{border: "solid white"}}/>
+        <br/>
         <OutlierTable/>
       </header>
     </div>
