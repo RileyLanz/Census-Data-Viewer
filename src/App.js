@@ -1,8 +1,8 @@
 import './App.css';
 import 'react-data-grid/lib/styles.css';
 import { WebR } from 'webr';
-import { useEffect, useState, useMemo } from 'react';
-import DataGrid from 'react-data-grid';
+import { useEffect, useState, useMemo, useRef, createContext, useContext } from 'react';
+import DataGrid, { renderHeaderCell } from 'react-data-grid';
 
 const webR = new WebR({repoUrl: "https://repo.r-wasm.org/"});
 await webR.init();
@@ -44,7 +44,6 @@ async function getAPlot(x,y,labelO,listO) {
     if (!${labelO}) {dfToUse$zipcode <- as.numeric(NA)}
 
     myPlot <- ggplot(dfToUse, mapping = aes(x = x, y = y, label = zipcode)) +
-      geom_abline(intercept = model$coefficients[1], slope = model$coefficients[2], color = "blue") +
       geom_point() +
       geom_label_repel(alpha = 0.7, max.overlaps = 1000) +
       scale_x_continuous(name = "${x}") +
@@ -115,22 +114,7 @@ function App() {
   const [rows, setRows] = useState([])
   const [xColName, setXColName] = useState(null)
   const [yColName, setYColName] = useState(null)
-
-  const initialSort = [{ columnKey: 'zipcode', direction: 'ASC' }];
-  const [sortColumns, setSortColumns] = useState(initialSort)
-  const sortedRows = useMemo(() => {
-    const sortedRows = [...rows];
-    sortedRows.sort((a,b) => {
-      for (const sort of sortColumns) {
-        const compResult = a[sort.columnKey] - b[sort.columnKey];
-        if (compResult !== 0) {
-          return sort.direction === "ASC" ? compResult : -compResult;
-        }
-      }
-      return 0;
-    });
-    return sortedRows;
-  }, [rows, sortColumns]);
+  const inputRef = useRef(null);
 
   function openTab(evt, tabName) {
     var i, tabcontent, tablinks;
@@ -148,6 +132,10 @@ function App() {
     document.getElementById(tabName).style.display = "block";
     evt.currentTarget.className += " active";
   }
+
+  useEffect(() => {
+    inputRef.current?.click()
+  },[])
 
   function getResults() {
     var xName = xAxis
@@ -221,42 +209,99 @@ function App() {
   }
 
   function AllRowsTable() {
+    const FilterContext = createContext(undefined);
+    const [filters, setFilters] = useState({city: ""})
+    const initialSort = [{ columnKey: 'zipcode', direction: 'ASC' }];
+    const [sortColumns, setSortColumns] = useState(initialSort)
+
+    const columns = useMemo(() => {
+      return(
+        [
+          {key: "zipcode", name: "Zipcode"},
+          {
+            key: "city",
+            name: "City",
+            sortable: false,
+            renderHeaderCell: ({ column }) => (
+              <FilterHeader
+                name="City"
+              />
+            )
+          },
+          {key: "x", name: xColName},
+          {key: "y", name: yColName},
+          {key: "pop", name: "Total Population"}
+        ]
+      )
+    },[xColName, yColName, filters])
+
+    const sortedRows = useMemo(() => {
+      const sortedRows = [...rows];
+      sortedRows.sort((a,b) => {
+        for (const sort of sortColumns) {
+          const compResult = a[sort.columnKey] - b[sort.columnKey];
+          if (compResult !== 0) {
+            return sort.direction === "ASC" ? compResult : -compResult;
+          }
+        }
+        return 0;
+      });
+      return sortedRows;
+    }, [rows, sortColumns]);
+
+    const filteredRows = useMemo(() => {
+      return sortedRows.filter(row => row.city.toLowerCase().includes(filters.city.toLowerCase()))
+    }, [sortedRows, filters])
+
+    function onSortColumnsChange(newSortColumns) {
+      if (newSortColumns.length === 0) {
+        setSortColumns(initialSort);
+      } else {
+        setSortColumns(newSortColumns);
+      }
+    }
+
+    function FilterHeader(props) {
+      const filters = useContext(FilterContext) ?? {city: ""};
+      return(
+        <>
+          {props.name}
+          <div style={{display: "inline-block"}} onClick={e => e.stopPropagation()}>
+            <input
+              type="text"
+              value={filters.city}
+              onChange={e => {
+                setFilters({...filters, city: e.target.value});
+              }}
+              ref={input => input && input.focus()}
+            />
+          </div>
+        </>
+      )
+    }
+
     if (xColName && yColName) {
       return (
-        <DataGrid
-          columns={columns}
-          rows={sortedRows}
-          onRowsChange={setRows}
-          sortColumns={sortColumns}
-          onSortColumnsChange={onSortColumnsChange}
-          defaultColumnOptions={{
-            sortable: true,
-            resizable: true
-          }}
-          columnAutoWidth
-        />
+        <FilterContext.Provider value={filters}>
+          <DataGrid
+            columns={columns}
+            rows={filteredRows}
+            onRowsChange={setRows}
+            sortColumns={sortColumns}
+            onSortColumnsChange={onSortColumnsChange}
+            defaultColumnOptions={{
+              sortable: true,
+              resizable: true
+            }}
+            columnAutoWidth
+          />
+        </FilterContext.Provider>
       )
     } else {
       return "Get a plot first"
     }
     
   }
-
-  function onSortColumnsChange(newSortColumns) {
-    if (newSortColumns.length === 0) {
-      setSortColumns(initialSort);
-    } else {
-      setSortColumns(newSortColumns);
-    }
-  }
-
-  const columns = [
-    {key: "zipcode", name: "Zipcode"},
-    {key: "city", name: "City", sortable: false},
-    {key: "x", name: xColName},
-    {key: "y", name: yColName},
-    {key: "pop", name: "Total Population"}
-  ]
 
   useEffect(() => {
     if (picture) {
@@ -302,14 +347,14 @@ function App() {
           </button>
         </p>
         <p style={{width: "80%"}}>
-          <div class="tab">
-            <button class="tablinks" onClick={e => openTab(e, 'Plot')}>Plot</button>
-            <button class="tablinks" onClick={e => openTab(e, 'Table')}>All Zipcodes</button>
+          <div className="tab">
+            <button className="tablinks" onClick={e => openTab(e, 'Plot')} ref={inputRef}>Plot</button>
+            <button className="tablinks" onClick={e => openTab(e, 'Table')}>All Zipcodes</button>
           </div>
-          <div id="Plot" class="tabcontent">
-            <canvas id="plot-canvas" width="900" height="450" style={{border: "solid white"}}/>
+          <div id="Plot" className="tabcontent">
+            {picture ? <canvas id="plot-canvas" width="900" height="450" style={{border: "solid white"}}/> : "Get a plot first"}
           </div>
-          <div id="Table" class="tabcontent">
+          <div id="Table" className="tabcontent">
             <AllRowsTable/>
           </div>
         </p>
