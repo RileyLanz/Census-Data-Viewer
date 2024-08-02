@@ -1,27 +1,43 @@
 import './App.css';
 import 'react-data-grid/lib/styles.css';
 import { WebR } from 'webr';
-import { useEffect, useState, useMemo, useRef, createContext, useContext } from 'react';
-import DataGrid, { renderHeaderCell } from 'react-data-grid';
+import { useEffect, useState, useRef } from 'react';
+import AllRowsTable from './AllRowsTable';
 
 const webR = new WebR({repoUrl: "https://repo.r-wasm.org/"});
 await webR.init();
-await webR.installPackages(["ggplot2", "knitr", "ggrepel", "stringr"])
+await webR.installPackages(["ggplot2", "knitr", "ggrepel", "stringr", "dplyr"])
 const categoryNames = await webR.evalRRaw(
   `library(ggplot2)
   library(knitr)
   library(stringr)
   library(ggrepel)
+  library(dplyr)
   false <- F
   true <- T
+
   dataCT <- read.csv("${window.location.href}/ct_data.csv")
-  zipTable <- read.csv("${window.location.href}/uszips.csv")
-  catNames <- read.csv("${window.location.href}/category_names.csv")
   names(dataCT) <- lapply(dataCT[1,], as.character)
   dataCT <- dataCT[-1,]
   dataCT[,3:323] <- sapply(dataCT[,3:323], as.numeric)
-  selectDataCT <- dataCT[,c(1,2,3,75,183,186,248:253,255,256,276:278,285,286,295:299,302,303,306:308,310,311,321,322)]
+  dataCT$\`Geographic Area Name\` <- substring(dataCT$\`Geographic Area Name\`, 7, 11)
+
+  medianIncomeCT <- read.csv("${window.location.href}/ct_median_income.csv")
+  names(medianIncomeCT) <- substring(names(medianIncomeCT), 7, 11)
+  medianIncomeCT <- medianIncomeCT[,-1]
+  medianIncomeCT <- data.frame(names(medianIncomeCT), as.character(medianIncomeCT[1,]))
+  medianIncomeCT[,2] <- gsub(",", "", medianIncomeCT[,2])
+  medianIncomeCT[,2][medianIncomeCT$\`as.character.medianIncomeCT.1....\` == "250000+"] <- "250001"
+  medianIncomeCT[,2][medianIncomeCT$as.character.medianIncomeCT.1.... == "-"] <- NA
+  medianIncomeCT[,2] <- as.numeric(medianIncomeCT[,2])
+
+  dataCT <- inner_join(dataCT, medianIncomeCT, by = join_by(\`Geographic Area Name\` == names.medianIncomeCT.))
+
+  zipTable <- read.csv("${window.location.href}/uszips.csv")
+  catNames <- read.csv("${window.location.href}/category_names.csv")
+  selectDataCT <- dataCT[,c(1,2,3,75,183,186,248:253,255,256,276:278,285,286,295:299,302,303,306:308,310,311,321,322,324)]
   names(selectDataCT) <- catNames[,1]
+  selectDataCT <- selectDataCT[,c(1:4,34,5:33)]
   print(names(selectDataCT))`,
 'string[]'
 )
@@ -32,20 +48,15 @@ async function getAPlot(x,y,labelO,listO) {
     `is_outlier <- function(x) {
       return(x < quantile(x, 0.25, na.rm = T) - 2 * IQR(x, na.rm = T) | x > quantile(x, 0.75, na.rm = T) + 2 * IQR(x, na.rm = T))
     }
-    
     dfToUse <- data.frame(x = selectDataCT$\`${x}\`, y = selectDataCT$\`${y}\`, pop = selectDataCT$\`Total Population\`)
-    model <- lm(dfToUse$x~dfToUse$y, na.action = "na.exclude")
-
-    fits <- model$coefficients[1] + (model$coefficients[2] * dfToUse$x)
-    rezzies <- dfToUse$y - fits
     
-    dfToUse$zipcode <- ifelse((is_outlier(abs(rezzies)) | is.na(rezzies)) & ${labelO || listO}, str_sub(selectDataCT$\`Geographic Area Name\`, start = -5), as.numeric(NA))
+    dfToUse$zipcode <- ifelse((is_outlier(dfToUse$x) | is_outlier(dfToUse$y)) & ${labelO || listO}, str_sub(selectDataCT$\`Geographic Area Name\`, start = -5), as.numeric(NA))
     outlierTable <- dfToUse[!is.na(dfToUse$zipcode),]
     if (!${labelO}) {dfToUse$zipcode <- as.numeric(NA)}
 
     myPlot <- ggplot(dfToUse, mapping = aes(x = x, y = y, label = zipcode)) +
       geom_point() +
-      geom_label_repel(alpha = 0.7, max.overlaps = 1000) +
+      geom_label_repel(alpha = 0.7, max.overlaps = 1000, min.segment.length	= 0) +
       scale_x_continuous(name = "${x}") +
       scale_y_continuous(name = "${y}")
     print(myPlot)
@@ -63,8 +74,9 @@ async function getAPlot(x,y,labelO,listO) {
       tempStrings <- paste(names(tempList), unlist(tempList), sep = ": ")
       tempString <- paste(tempStrings, collapse = ", ")
       rowStrings <- c(rowStrings, tempString)
+    }
 
-      dfToUse$zipcode <- str_sub(selectDataCT$\`Geographic Area Name\`, start = -5)
+    dfToUse$zipcode <- str_sub(selectDataCT$\`Geographic Area Name\`, start = -5)
     dfToUse$city <- NA
     for (z in dfToUse$zipcode) {
       dfToUse[dfToUse$zipcode == z,]$city <- zipTable[zipTable$zip == as.integer(z),]$city
@@ -76,7 +88,6 @@ async function getAPlot(x,y,labelO,listO) {
       tempStrings <- paste(names(tempList), unlist(tempList), sep = ": ")
       tempString <- paste(tempStrings, collapse = ", ")
       allRowStrings <- c(allRowStrings, tempString)
-    }
     }`, {
     captureGraphics: {
       width: 600,
@@ -134,6 +145,7 @@ function App() {
   }
 
   useEffect(() => {
+    // Open "Plot" tab when page loads
     inputRef.current?.click()
   },[])
 
@@ -185,13 +197,13 @@ function App() {
             <tr style={{backgroundColor: "lightblue", color: "black"}}>
               <th scope="col">Zipcode</th>
               <th scope="col">City</th>
-              <th scope="col">{xAxis}</th>
-              <th scope="col">{yAxis}</th>
+              <th scope="col">{xColName}</th>
+              <th scope="col">{yColName}</th>
               <th scope="col">Total Population</th>
             </tr>
             {outliers.map(row =>
               <tr>
-                <th scope="row" style={{color: "black", backgroundColor: "rgb(220,220,220)"}}>
+                <th scope="row" style={{color: "black", backgroundColor: "#c9f2ff"}}>
                   {row.zipcode}
                 </th>
                 <td>{row.city}</td>
@@ -208,101 +220,6 @@ function App() {
     }
   }
 
-  function AllRowsTable() {
-    const FilterContext = createContext(undefined);
-    const [filters, setFilters] = useState({city: ""})
-    const initialSort = [{ columnKey: 'zipcode', direction: 'ASC' }];
-    const [sortColumns, setSortColumns] = useState(initialSort)
-
-    const columns = useMemo(() => {
-      return(
-        [
-          {key: "zipcode", name: "Zipcode"},
-          {
-            key: "city",
-            name: "City",
-            sortable: false,
-            renderHeaderCell: ({ column }) => (
-              <FilterHeader
-                name="City"
-              />
-            )
-          },
-          {key: "x", name: xColName},
-          {key: "y", name: yColName},
-          {key: "pop", name: "Total Population"}
-        ]
-      )
-    },[xColName, yColName, filters])
-
-    const sortedRows = useMemo(() => {
-      const sortedRows = [...rows];
-      sortedRows.sort((a,b) => {
-        for (const sort of sortColumns) {
-          const compResult = a[sort.columnKey] - b[sort.columnKey];
-          if (compResult !== 0) {
-            return sort.direction === "ASC" ? compResult : -compResult;
-          }
-        }
-        return 0;
-      });
-      return sortedRows;
-    }, [rows, sortColumns]);
-
-    const filteredRows = useMemo(() => {
-      return sortedRows.filter(row => row.city.toLowerCase().includes(filters.city.toLowerCase()))
-    }, [sortedRows, filters])
-
-    function onSortColumnsChange(newSortColumns) {
-      if (newSortColumns.length === 0) {
-        setSortColumns(initialSort);
-      } else {
-        setSortColumns(newSortColumns);
-      }
-    }
-
-    function FilterHeader(props) {
-      const filters = useContext(FilterContext) ?? {city: ""};
-      return(
-        <>
-          {props.name}
-          <div style={{display: "inline-block"}} onClick={e => e.stopPropagation()}>
-            <input
-              type="text"
-              value={filters.city}
-              onChange={e => {
-                setFilters({...filters, city: e.target.value});
-              }}
-              ref={input => input && input.focus()}
-            />
-          </div>
-        </>
-      )
-    }
-
-    if (xColName && yColName) {
-      return (
-        <FilterContext.Provider value={filters}>
-          <DataGrid
-            columns={columns}
-            rows={filteredRows}
-            onRowsChange={setRows}
-            sortColumns={sortColumns}
-            onSortColumnsChange={onSortColumnsChange}
-            defaultColumnOptions={{
-              sortable: true,
-              resizable: true
-            }}
-            columnAutoWidth
-          />
-        </FilterContext.Provider>
-      )
-    } else {
-      return "Get a plot first"
-    }
-    
-  }
-
   useEffect(() => {
     if (picture) {
       
@@ -317,7 +234,7 @@ function App() {
           Let's make a graph! 
           <br/>
             <label>
-              Select an x-axis variable:
+              Select an x-axis variable:&nbsp;
               <select name="xAxis" value={xAxis} onChange={e => setXAxis(e.target.value)}>
                 <option value={null}></option>
                 {categoryNames.slice(2).map(name => <option value={name}>{name}</option>)}
@@ -325,7 +242,7 @@ function App() {
             </label>
           <br/>
             <label>
-              Select a y-axis variable:
+              Select a y-axis variable:&nbsp;
               <select name="yAxis" value={yAxis} onChange={e => setYAxis(e.target.value)}>
                 <option value={null}></option>
                 {categoryNames.slice(2).map(name => <option value={name}>{name}</option>)}
@@ -343,19 +260,34 @@ function App() {
             </label>
           <br/>
           <button onClick={getResults} disabled={loading || !xAxis || !yAxis}>
-            Get a plot!
+            {loading ? "Loading..." : (xAxis && yAxis ? "Get a plot!" : "Select variables")}
           </button>
         </p>
         <p style={{width: "80%"}}>
           <div className="tab">
             <button className="tablinks" onClick={e => openTab(e, 'Plot')} ref={inputRef}>Plot</button>
             <button className="tablinks" onClick={e => openTab(e, 'Table')}>All Zipcodes</button>
+            <button className="tablinks" onClick={e => openTab(e, 'Notes')}>Notes and Credits</button>
           </div>
-          <div id="Plot" className="tabcontent">
+          <div id="Plot" className="tabcontent" height={picture ? "460px" : "30px"}>
             {picture ? <canvas id="plot-canvas" width="900" height="450" style={{border: "solid white"}}/> : "Get a plot first"}
           </div>
-          <div id="Table" className="tabcontent">
-            <AllRowsTable/>
+          <div id="Table" className="tabcontent" height={xColName && yColName ? "460px" : "30px"}>
+            <AllRowsTable
+              rows={rows}
+              xColName={xColName}
+              yColName={yColName}
+            />
+          </div>
+          <div id="Notes" className="tabcontent" height="460px" style={{fontSize: "medium", textAlign: "left"}}>
+            Variable footnotes:<br/>
+            *Median income above $250,000 displayed as $250,001<br/>
+            **Alone or in combination with one or more other races<br/>
+            ***Not spouse, partner, child, or grandchild<br/>
+            ****Parent/father/mother indicates living with own children under 18<br/>
+            *****Occupied Housing Units<br/><br/>
+            All data taken from US Census Bureau (<a href="https://data.census.gov/table" target='_blank'>data.census.gov/table</a>).<br/>
+            Matching of ZCTA5 (zip codes) to city names acquired from <a href="https://simplemaps.com/data/us-zips" target='_blank'>simplemaps.com/data/us-zips</a>.
           </div>
         </p>
         <br/>
