@@ -11,7 +11,8 @@
     "react-data-grid": "7.0.0-beta.41",
     "react-dom": "^18.3.1",
     "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "webr": "0.4.0"
   },
   "scripts": {
     "predeploy": "npm run build",
