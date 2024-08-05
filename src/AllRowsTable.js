@@ -1,11 +1,11 @@
 import DataGrid from "react-data-grid";
-import { useState, useMemo, createContext, useContext } from "react";
+import { useState, useMemo } from "react";
 
 export default function AllRowsTable({ rows, xColName, yColName }) {
-  const FilterContext = createContext(undefined);
   const [filters, setFilters] = useState({ city: "" });
   const initialSort = [{ columnKey: "Geographic Area Name", direction: "ASC" }];
   const [sortColumns, setSortColumns] = useState(initialSort);
+  const [currentColumn, setCurrentColumn] = useState(initialSort);
 
   const columns = useMemo(() => {
     return [
@@ -30,7 +30,6 @@ export default function AllRowsTable({ rows, xColName, yColName }) {
   }, [xColName, yColName, filters]);
 
   function FilterHeader(props) {
-    const filters = useContext(FilterContext) ?? { city: "" };
     return (
       <>
         {props.name}&nbsp;
@@ -45,8 +44,9 @@ export default function AllRowsTable({ rows, xColName, yColName }) {
               var newFilters = { ...filters };
               newFilters[props.value] = e.target.value;
               setFilters(newFilters);
+              setCurrentColumn(props.value);
             }}
-            ref={(input) => input && input.focus()}
+            autoFocus={currentColumn === props.value}
             style={{ width: 100 }}
           />
         </div>
@@ -89,20 +89,18 @@ export default function AllRowsTable({ rows, xColName, yColName }) {
 
   if (xColName && yColName) {
     return (
-      <FilterContext.Provider value={filters}>
         <DataGrid
-          columns={columns}
-          rows={filteredRows}
-          sortColumns={sortColumns}
-          onSortColumnsChange={onSortColumnsChange}
-          defaultColumnOptions={{
+            columns={columns}
+            rows={filteredRows}
+            sortColumns={sortColumns}
+            onSortColumnsChange={onSortColumnsChange}
+            defaultColumnOptions={{
             sortable: true,
             resizable: true,
-          }}
-          columnAutoWidth
-          style={{ height: 460 }}
+            }}
+            columnAutoWidth
+            style={{ height: 460 }}
         />
-      </FilterContext.Provider>
     );
   } else {
     return "Get a plot first";
