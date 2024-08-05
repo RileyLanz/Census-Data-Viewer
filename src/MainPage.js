@@ -10,9 +10,9 @@ async function getAPlot(x, y, labelO, listO) {
     `is_outlier <- function(x) {
       return(x < quantile(x, 0.25, na.rm = T) - 2 * IQR(x, na.rm = T) | x > quantile(x, 0.75, na.rm = T) + 2 * IQR(x, na.rm = T) | is.na(x))
     }
-    dfToUse <- data.frame(x = selectDataCT$\`${x}\`, y = selectDataCT$\`${y}\`, pop = selectDataCT$\`Total Population\`)
+    dfToUse <- data.frame(x = selectData$\`${x}\`, y = selectData$\`${y}\`, pop = selectData$\`Total Population\`)
     
-    dfToUse$zipcode <- ifelse((is_outlier(dfToUse$x) | is_outlier(dfToUse$y)) & ${labelO || listO}, str_sub(selectDataCT$\`Geographic Area Name\`, start = -5), as.numeric(NA))
+    dfToUse$zipcode <- ifelse((is_outlier(dfToUse$x) | is_outlier(dfToUse$y)) & ${labelO || listO}, str_sub(selectData$\`Geographic Area Name\`, start = -5), as.numeric(NA))
     outlierTable <- dfToUse[!is.na(dfToUse$zipcode),]
     if (!${labelO}) {dfToUse$zipcode <- as.numeric(NA)}
 
@@ -60,7 +60,7 @@ async function getOutlierData() {
   return result;
 }
 
-export default function MainPage() {
+export default function MainPage({ setSelectedState }) {
   const [xAxis, setXAxis] = useState();
   const [yAxis, setYAxis] = useState();
   const [labelOutliers, setLabelOutliers] = useState(false);
