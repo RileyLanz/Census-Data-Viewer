@@ -239,6 +239,9 @@ export default function MainPage({ setSelectedState }) {
           <button className="tablinks" onClick={(e) => openTab(e, "Notes")}>
             Notes and Credits
           </button>
+          <button onClick={() => setSelectedState(null)} style={{backgroundColor: "#f44336", color: "white", border: "none", float: "right"}}>
+            Select a New State
+        </button>
         </div>
         <div
           id="Plot"
