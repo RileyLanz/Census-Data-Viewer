@@ -25,7 +25,7 @@ async function getCategoryNames() {
 
     catNames <- read.csv("${window.location.href}/category_names.csv")
 
-    print(catNames$Categories)`,
+    print(catNames$Categories[c(1:4,34,5:33)])`,
     "string[]",
   );
 }
@@ -78,6 +78,24 @@ async function getAllRows() {
 export const webR = new WebR({ repoUrl: "https://repo.r-wasm.org/" });
 export var categoryNames = categoryNames;
 export var allRows = allRows;
+
+export function tidyRows(r) {
+  var tidied = r.map((str) => {
+    var parsed = {};
+    var pairs = str.split(", ");
+    for (var i = 0, l = pairs.length, keyVal; i < l; i++) {
+      keyVal = pairs[i].split(": ");
+      if (keyVal[1] == "NA") {
+        keyVal[1] = NaN;
+      }
+      if (keyVal[0]) {
+        parsed[keyVal[0]] = keyVal[1];
+      }
+    }
+    return parsed;
+  });
+  return tidied;
+}
 
 export default function App() {
   const [content, setContent] = useState("Installing R and R packages");

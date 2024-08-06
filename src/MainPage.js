@@ -2,7 +2,8 @@ import "./App.css";
 import "react-data-grid/lib/styles.css";
 import { useEffect, useState, useRef } from "react";
 import AllRowsTable from "./AllRowsTable";
-import { webR, categoryNames, allRows } from "./App.js";
+import ZipcodeLookup from "./ZipcodeLookup";
+import { webR, categoryNames, allRows, tidyRows } from "./App.js";
 
 async function getAPlot(x, y, labelO, listO) {
   const shelter = await new webR.Shelter();
@@ -73,6 +74,8 @@ export default function MainPage({ setSelectedState }) {
   const [yColName, setYColName] = useState(null);
   const inputRef = useRef(null);
 
+  const tidiedRows = tidyRows(allRows);
+
   function openTab(evt, tabName) {
     var i, tabcontent, tablinks;
 
@@ -114,24 +117,6 @@ export default function MainPage({ setSelectedState }) {
       }
       setLoading(false);
     });
-  }
-
-  function tidyRows(r) {
-    var tidied = r.map((str) => {
-      var parsed = {};
-      var pairs = str.split(", ");
-      for (var i = 0, l = pairs.length, keyVal; i < l; i++) {
-        keyVal = pairs[i].split(": ");
-        if (keyVal[1] == "NA") {
-          keyVal[1] = NaN;
-        }
-        if (keyVal[0]) {
-          parsed[keyVal[0]] = keyVal[1];
-        }
-      }
-      return parsed;
-    });
-    return tidied;
   }
 
   function OutlierTable() {
@@ -246,7 +231,10 @@ export default function MainPage({ setSelectedState }) {
             Plot
           </button>
           <button className="tablinks" onClick={(e) => openTab(e, "Table")}>
-            All Zipcodes
+            Table
+          </button>
+          <button className="tablinks" onClick={(e) => openTab(e, "Lookup")}>
+            Zipcode Lookup
           </button>
           <button className="tablinks" onClick={(e) => openTab(e, "Notes")}>
             Notes and Credits
@@ -274,9 +262,18 @@ export default function MainPage({ setSelectedState }) {
           style={{ height: xColName && yColName ? "460px" : "30px" }}
         >
           <AllRowsTable
-            rows={tidyRows(allRows)}
+            rows={tidiedRows}
             xColName={xColName}
             yColName={yColName}
+          />
+        </div>
+        <div
+          id="Lookup"
+          className="tabcontent"
+          style={{ height: "460px"}}
+        >
+          <ZipcodeLookup
+            rows={tidiedRows}
           />
         </div>
         <div
