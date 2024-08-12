@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Select from "react-select";
 
 export default function ZipcodeLookup({rows}) {
     const [currentZip, setCurrentZip] = useState(null);
@@ -15,7 +16,7 @@ export default function ZipcodeLookup({rows}) {
         if (currentRow) {
             return(
                 <div style={{width: "100%", display: "inline-flex", justifyContent: "space-evenly", fontSize: "22px"}}>
-                    <div style={{margin: "10px", textAlign: "left"}}>
+                    <div style={{margin: "10px", marginTop: "0px", textAlign: "left"}}>
                         <b>Zipcode:</b> {currentRow["Geographic Area Name"]} <br/>
                         <b>City:</b> {currentRow.city} <br/>
                         <b>Total Population:</b> {currentRow["Total Population"]} <br/>
@@ -26,7 +27,7 @@ export default function ZipcodeLookup({rows}) {
                         <b>Percent of OHU***** Occupied by Owners:</b> {currentRow["Percent of OHU***** Occupied by Owners"]} <br/>
                         <b>Percent of OHU***** Occupied by Renters:</b> {currentRow["Percent of OHU***** Occupied by Renters"]} <br/>
                     </div>
-                    <div style={{margin: "10px", textAlign: "left"}}>
+                    <div style={{margin: "10px", marginTop: "0px", textAlign: "left"}}>
                         <b>Percent White:</b> {currentRow["Percent White**"]} <br/>
                         <b>Percent Black or African American:</b> {currentRow["Percent Black or African American**"]} <br/>
                         <b>Percent American Indian and Alaska Native:</b> {currentRow["Percent American Indian and Alaska Native**"]} <br/>
@@ -43,19 +44,21 @@ export default function ZipcodeLookup({rows}) {
         }
     }
 
+    const options = 
+        rows.map((row) => (
+            { value: row["Geographic Area Name"], label: row["Geographic Area Name"] + " " + row["city"] }
+        ))
+
     return(
         <div>
-            <select
-                name="zipcode"
-                value={currentZip}
-                onChange={(e) => setCurrentZip(e.target.value)}
-                style={{float: "left", marginTop: "10px", marginLeft: "10px", fontSize: "20px"}}
-            >
-                <option value={null}></option>
-                {rows.map((row) => (
-                <option value={row["Geographic Area Name"]}>{row["Geographic Area Name"] + " " + row["city"]}</option>
-                ))}
-            </select>
+            <div style={{float: "left", marginTop: "10px", marginLeft: "10px", fontSize: "16px", textAlign: "left", width: "50%"}}>
+                <Select
+                    name="zipcode"
+                    defaultValue={null}
+                    onChange={(e) => setCurrentZip(e.value)}
+                    options={options}
+                />
+            </div>
             <br/>
             <ZipcodeData/>
         </div>

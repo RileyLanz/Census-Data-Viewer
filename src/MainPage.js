@@ -11,25 +11,21 @@ async function getAPlot(x, y, labelO, listO) {
     `is_outlier <- function(x) {
       return(x < quantile(x, 0.25, na.rm = T) - 2 * IQR(x, na.rm = T) | x > quantile(x, 0.75, na.rm = T) + 2 * IQR(x, na.rm = T) | is.na(x))
     }
-    dfToUse <- data.frame(x = selectData$\`${x}\`, y = selectData$\`${y}\`, pop = selectData$\`Total Population\`)
+    dfToUse <- data.frame(x = selectData$\`${x}\`, y = selectData$\`${y}\`, pop = selectData$\`Total Population\`, city = selectData$city)
     
     dfToUse$zipcode <- ifelse((is_outlier(dfToUse$x) | is_outlier(dfToUse$y)) & ${labelO || listO}, str_sub(selectData$\`Geographic Area Name\`, start = -5), as.numeric(NA))
     outlierTable <- dfToUse[!is.na(dfToUse$zipcode),]
     if (!${labelO}) {dfToUse$zipcode <- as.numeric(NA)}
 
+    corrs <- cor.test(dfToUse$x, dfToUse$y)
+
     myPlot <- ggplot(dfToUse, mapping = aes(x = x, y = y, label = zipcode)) +
       geom_point() +
       geom_label_repel(alpha = 0.7, max.overlaps = 1000, min.segment.length	= 0) +
       scale_x_continuous(name = "${x}") +
-      scale_y_continuous(name = "${y}")
+      scale_y_continuous(name = "${y}") +
+      ggtitle(paste("Correlation: ", round(corrs$estimate, 3), ", P-Value: ", signif(corrs$p.value, 3), sep = ""))
     print(myPlot)
-    
-    if (nrow(outlierTable) > 0) {
-      outlierTable$city <- NA
-      for (z in outlierTable$zipcode) {
-        outlierTable[outlierTable$zipcode == z,]$city <- zipTable[zipTable$zip == as.integer(z),]$city
-      }
-    }
     
     rowStrings <- c()
     for(r in 1:(nrow(outlierTable))) {
@@ -37,14 +33,6 @@ async function getAPlot(x, y, labelO, listO) {
       tempStrings <- paste(names(tempList), unlist(tempList), sep = ": ")
       tempString <- paste(tempStrings, collapse = ", ")
       rowStrings <- c(rowStrings, tempString)
-    }
-    
-    allRowStrings <- c()
-    for(r in 1:(nrow(dfToUse))) {
-      tempList <- as.list(dfToUse[r,])
-      tempStrings <- paste(names(tempList), unlist(tempList), sep = ": ")
-      tempString <- paste(tempStrings, collapse = ", ")
-      allRowStrings <- c(allRowStrings, tempString)
     }`,
     {
       captureGraphics: {
