@@ -18,15 +18,19 @@ async function getAPlot(x, y, labelO, listO) {
     if (!${labelO}) {dfToUse$zipcode <- as.numeric(NA)}
 
     corrs <- cor.test(dfToUse$x, dfToUse$y)
+    strengthBucket <- cut(abs(corrs$estimate), breaks = seq(0, 1, 0.2), labels = c("Very weak", "Weak", "Moderate", "Strong", "Very strong"))
+    directionBucket <- ifelse(corrs$estimate >= 0, "positive", "negative")
+    pBucket <- ifelse(corrs$p.value <= 0.05, "Statistically significant", "Not statistically significant")
 
     myPlot <- ggplot(dfToUse, mapping = aes(x = x, y = y, label = zipcode)) +
       geom_point() +
       geom_label_repel(alpha = 0.7, max.overlaps = 1000, min.segment.length	= 0) +
       scale_x_continuous(name = "${x}") +
       scale_y_continuous(name = "${y}") +
-      ggtitle(paste("Correlation: ", round(corrs$estimate, 3), ", P-Value: ", signif(corrs$p.value, 3), sep = ""))
+      geom_label_repel(mapping = aes(label = zipcode), nudge_x = 6, alpha = 0.5) +
+      ggtitle(paste("Correlation: ", round(corrs$estimate, 3), " (", strengthBucket, " ", directionBucket, " correlation),\\nP-Value: ", signif(corrs$p.value, 3), " (", pBucket, ")", sep = ""))
     print(myPlot)
-    
+
     rowStrings <- c()
     for(r in 1:(nrow(outlierTable))) {
       tempList <- as.list(outlierTable[r,])
