@@ -31,7 +31,7 @@ async function getCategoryNames() {
 }
 
 async function getStateData(cs) {
-  await webR.evalRVoid(
+  const result = await webR.evalRRaw(
     `data <- read.csv("${window.location.href}/${cs}_data.csv")
     names(data) <- lapply(data[1,], as.character)
     data <- data[-1,]
@@ -52,8 +52,14 @@ async function getStateData(cs) {
     zipTable <- read.csv("${window.location.href}/uszips.csv")
     selectData <- data[,c(1,2,3,75,183,186,248:253,255,256,276:278,285,286,295:299,302,303,306:308,310,311,321,322,324)]
     names(selectData) <- catNames[,1]
-    selectData <- selectData[,c(1:4,34,5:33)]`
-  )
+    selectData <- selectData[,c(1:4,34,5:33)]
+    
+    stateCodes <- read.csv("${window.location.href}/state_codes.csv")
+    stateName <- stateCodes[stateCodes$Code == "${cs}",]$State
+    print(stateName)`,
+    "string"
+  );
+  return(result)
 }
 
 async function getAllRows() {
@@ -71,7 +77,7 @@ async function getAllRows() {
       allRowStrings <- c(allRowStrings, tempString)
     }
     print(allRowStrings)`,
-    "string[]",
+    "string[]"
   );
 }
 
@@ -101,6 +107,7 @@ export default function App() {
   const [content, setContent] = useState("Installing R and R packages");
   const [selectedState, setSelectedState] = useState(null);
   const [tentativeState, setCurrentState] = useState(null);
+  const [stateName, setStateName] = useState(null);
 
   useEffect(() => {
     installWebR().then(() => {
@@ -113,10 +120,13 @@ export default function App() {
 
   function RenderPage() {
     if (selectedState) {
-      return(<MainPage setSelectedState={setSelectedState}/>)
+      return(<MainPage setSelectedState={setSelectedState} stateName={stateName}/>)
     } else {
       return(
         <>
+          <h1>
+            Census Data Viewer
+          </h1>
           <label>
             Select a state:&nbsp;
             <select
@@ -129,11 +139,12 @@ export default function App() {
               <option value="ma">Massachusetts</option>
             </select>
           </label>
-          <br/>
           <button
+          style={{marginTop: "10px"}}
           onClick={() => {
               setContent("Retrieving census data (1/2)");
-              getStateData(tentativeState).then(() => {
+              getStateData(tentativeState).then((r) => {
+                setStateName(r)
                 setContent("Retrieving census data (2/2)");
                 getAllRows().then(() => {
                   setContent("RenderPage");

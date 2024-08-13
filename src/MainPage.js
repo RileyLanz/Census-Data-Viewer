@@ -53,7 +53,7 @@ async function getOutlierData() {
   return result;
 }
 
-export default function MainPage({ setSelectedState }) {
+export default function MainPage({ setSelectedState, stateName }) {
   const [xAxis, setXAxis] = useState();
   const [yAxis, setYAxis] = useState();
   const [labelOutliers, setLabelOutliers] = useState(false);
@@ -157,8 +157,12 @@ export default function MainPage({ setSelectedState }) {
   return (
     <>
       <p>
-        Let's make a graph!
-        <br />
+        <h1 style={{margin: "0px"}}>
+            Census Data Viewer
+        </h1>
+        <h3 style={{marginTop: "0px"}}>
+            {stateName}
+        </h3>
         <label>
           Select an x-axis variable:&nbsp;
           <select
